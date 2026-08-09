@@ -1,7 +1,7 @@
 class Clipi < Formula
   desc "Local-only MCP browser service with a Chrome Extension bridge"
   homepage "https://git.882816.xyz/sid/clipi"
-  version "0.5.4"
+  version "0.5.5"
 
   depends_on arch: :arm64
   depends_on :macos
@@ -9,12 +9,12 @@ class Clipi < Formula
   on_macos do
     on_arm do
       url "https://git.882816.xyz/sid/clipi/releases/download/v#{version}/clipi-#{version}-darwin-arm64.tar.gz"
-      sha256 "02a4a692d0c8ea7cc60248563b4fe29809814e693ae48976c3274fabcbeb7258"
+      sha256 "364b03b9f6712fecba29ab25a31297f6e724213e255d99f19fa587a18ffec982"
 
       v = version
       resource "chrome_extension" do
         url "https://git.882816.xyz/sid/clipi/releases/download/v#{v}/clipi-extension-chrome-mv3-#{v}.zip"
-        sha256 "9c69b39a84b781a9e83fc2324b3d0e4c44017a3d0e5d258cab3678fabc2df3bb"
+        sha256 "a1d3149e5591de63fbeeef3366bc0f122a0ea82174ab33477925c73b8999d0cd"
       end
     end
   end
@@ -27,6 +27,43 @@ class Clipi < Formula
     end
   end
 
+  def post_install
+    # Chrome Load unpacked realpath()s the selected path. Stage a complete tree
+    # into a non-versioned real directory under Homebrew var so upgrades only
+    # require Reload. Uninstall intentionally leaves this directory in place.
+    source = pkgshare
+    odie "clipi: packaged Extension is missing manifest.json" unless (source/"manifest.json").file?
+
+    parent = var/"clipi"
+    target = parent/"extension"
+    stage = parent/".extension.stage.#{Process.pid}"
+    backup = parent/".extension.backup.#{Process.pid}"
+
+    mkdir_p parent
+    rm_r stage if stage.exist?
+    rm_r backup if backup.exist?
+    mkdir stage
+
+    begin
+      source.each_child do |child|
+        cp_r child, stage
+      end
+      odie "clipi: staged Extension is incomplete" unless (stage/"manifest.json").file?
+
+      mv target, backup if target.exist? || target.symlink?
+      begin
+        mv stage, target
+      rescue
+        rm_r target if target.exist? || target.symlink?
+        mv backup, target if backup.exist?
+        raise
+      end
+      rm_r backup if backup.exist?
+    ensure
+      rm_r stage if stage.exist?
+    end
+  end
+
   service do
     run [opt_bin/"clipi-server"]
     keep_alive true
@@ -36,12 +73,16 @@ class Clipi < Formula
 
   def caveats
     <<~EOS
-      Load the bundled Chrome Extension manually:
+      Load the bundled Chrome Extension once from this fixed real directory
+      (not a Cellar or opt path; Chrome realpath()s unpacked Extension roots):
 
         1. Open chrome://extensions.
         2. Enable Developer mode.
         3. Select "Load unpacked".
-        4. Select: #{opt_pkgshare}
+        4. Select: #{var}/clipi/extension
+
+      After every `brew upgrade clipi`, click Reload on that same Extension entry.
+      Do not re-select a versioned Cellar path.
 
       Start the local service:
         brew services start clipi
@@ -51,6 +92,7 @@ class Clipi < Formula
 
       Homebrew manages this installation. Do not use `clipi-admin install`,
       `upgrade`, or `rollback`; upgrade with `brew upgrade clipi` instead.
+      Uninstall leaves #{var}/clipi/extension in place.
     EOS
   end
 
@@ -58,5 +100,6 @@ class Clipi < Formula
     assert_match version.to_s, shell_output("#{bin}/clipi --version")
     assert_match version.to_s, shell_output("#{bin}/clipi-admin --version")
     assert_match version.to_s, shell_output("#{bin}/clipi-server --version")
+    assert_path_exists var/"clipi/extension/manifest.json"
   end
 end
