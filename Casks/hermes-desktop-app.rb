@@ -32,7 +32,7 @@ cask "hermes-desktop-app" do
     This is the unpacked Desktop app from `npm run pack`, not the official
     Hermes-Setup installer. The build is unsigned, so install with:
 
-      brew install --cask --no-quarantine sidkang/fonts/hermes-desktop-app
+      brew install --cask --no-quarantine hermes-desktop-app
 
     If Gatekeeper still blocks it:
 

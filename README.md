@@ -16,14 +16,15 @@ Install a released font cask directly:
 brew install --cask sidkang/fonts/font-braille-spinner-kitty-term
 ```
 
-Install the unpacked Hermes Desktop app (not the official Setup cask):
+Install the unpacked Hermes Desktop app cask (not a font, and not the official Setup cask):
 
 ```bash
+brew tap sidkang/homebrew https://github.com/sidkang/homebrew
 brew uninstall --cask hermes-desktop
-brew install --cask --no-quarantine sidkang/fonts/hermes-desktop-app
+brew install --cask --no-quarantine hermes-desktop-app
 ```
 
-Or add the tap first:
+Or add the fonts tap first:
 
 ```bash
 brew tap sidkang/fonts

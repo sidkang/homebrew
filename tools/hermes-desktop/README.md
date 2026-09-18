@@ -9,14 +9,8 @@ GitHub Actions watches [NousResearch/hermes-agent](https://github.com/NousResear
 Uninstall the official Setup cask first if it is present; both install `Hermes.app`:
 
 ```bash
+brew tap sidkang/homebrew https://github.com/sidkang/homebrew
 brew uninstall --cask hermes-desktop
-brew install --cask --no-quarantine sidkang/fonts/hermes-desktop-app
-```
-
-Or add the tap first:
-
-```bash
-brew tap sidkang/fonts
 brew install --cask --no-quarantine hermes-desktop-app
 ```
 
