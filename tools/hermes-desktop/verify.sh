@@ -47,11 +47,12 @@ import json
 from pathlib import Path
 
 info = json.loads(Path("$WORKDIR/BUILD-INFO.json").read_text())
-assert info["upstream_repository"] == "NousResearch/hermes-agent"
-assert info["version"] == "$VERSION"
-assert info["upstream_tag"] in {"$VERSION", "v$VERSION"}
-assert info["pack_command"] == "npm run pack"
-assert len(info["upstream_commit"]) == 40
+print("BUILD-INFO.json:", json.dumps(info, indent=2))
+assert info["upstream_repository"] == "NousResearch/hermes-agent", info
+assert info["version"] == "$VERSION", info
+assert info["upstream_tag"] in {"$VERSION", "v$VERSION"}, info
+assert info["pack_command"] == "npm run pack", info
+assert len(info["upstream_commit"]) == 40, info
 PY
 
 SHA256=$(shasum -a 256 "$ZIP" | awk '{print $1}')
@@ -59,12 +60,14 @@ python3 - <<PY
 from pathlib import Path
 
 text = Path("$CASK").read_text()
+print(text)
 assert 'cask "hermes-desktop-app"' in text
 assert 'version "$VERSION"' in text
 assert 'sha256 "$SHA256"' in text
-assert "Hermes-mac-arm64-$VERSION.zip" in text
+assert "hermes-desktop-v#{version}" in text
+assert "Hermes-mac-arm64-#{version}.zip" in text
 assert 'app "Hermes.app"' in text
-assert "font-" not in Path("$CASK").name
+assert Path("$CASK").name == "hermes-desktop-app.rb"
 PY
 
 echo "Verified $ZIP"
