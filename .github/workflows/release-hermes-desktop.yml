@@ -149,7 +149,6 @@ jobs:
           cask=$(find release -name 'hermes-desktop-app.rb' -print -quit)
           test -f "$zip"
           test -f "$cask"
-          cp "$cask" release/hermes-desktop-app.rb
           if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" "$zip" \
               --repo "$GITHUB_REPOSITORY" \
@@ -164,7 +163,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p Casks
-          cp release/hermes-desktop-app.rb Casks/hermes-desktop-app.rb
+          cask=$(find release -name 'hermes-desktop-app.rb' -print -quit)
+          test -f "$cask"
+          cp "$cask" Casks/hermes-desktop-app.rb
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Casks/hermes-desktop-app.rb
