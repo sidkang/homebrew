@@ -1,0 +1,172 @@
+name: Release Hermes Desktop
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Upstream git tag (for example v2026.9.14). Empty uses the latest published release."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-hermes-desktop
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    if: github.repository == 'sidkang/homebrew'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      should_build: ${{ steps.detect.outputs.should_build }}
+      tag: ${{ steps.detect.outputs.tag }}
+      version: ${{ steps.detect.outputs.version }}
+      release_tag: ${{ steps.detect.outputs.release_tag }}
+    steps:
+      - id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_INPUT: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "$TAG_INPUT" ]; then
+            tag="$TAG_INPUT"
+          else
+            tag=$(gh release view --repo NousResearch/hermes-agent --json tagName,isDraft,isPrerelease \
+              --jq 'if .isDraft or .isPrerelease then empty else .tag_name end')
+            if [ -z "$tag" ]; then
+              echo "No published non-prerelease upstream release."
+              echo "should_build=false" >> "$GITHUB_OUTPUT"
+              echo "tag=" >> "$GITHUB_OUTPUT"
+              echo "version=" >> "$GITHUB_OUTPUT"
+              echo "release_tag=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          gh api "repos/NousResearch/hermes-agent/git/ref/tags/${tag}" >/dev/null
+          version="${tag#v}"
+          release_tag="hermes-desktop-v${version}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Already published $release_tag"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Building $release_tag from upstream $tag"
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: detect
+    if: github.repository == 'sidkang/homebrew' && needs.detect.outputs.should_build == 'true'
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          repository: NousResearch/hermes-agent
+          ref: ${{ needs.detect.outputs.tag }}
+          path: .upstream/hermes-agent
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: .upstream/hermes-agent/package-lock.json
+      - name: Use npm 12
+        run: npm i -g npm@12
+      - name: Pack unpacked desktop app
+        env:
+          HERMES_SOURCE: ${{ github.workspace }}/.upstream/hermes-agent
+          VERSION: ${{ needs.detect.outputs.version }}
+          UPSTREAM_TAG: ${{ needs.detect.outputs.tag }}
+        run: tools/hermes-desktop/build.sh
+      - name: Verify pack output
+        env:
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: tools/hermes-desktop/verify.sh
+      - name: Style generated cask
+        run: |
+          set -euo pipefail
+          tap="$(brew --repository)/Library/Taps/sidkang/homebrew-stylecheck"
+          mkdir -p "$tap/Casks"
+          cp dist/casks/hermes-desktop-app.rb "$tap/Casks/"
+          brew style --cask "$tap/Casks/hermes-desktop-app.rb"
+      - name: Stage release artifact
+        env:
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/artifact
+          cp "dist/releases/Hermes-mac-arm64-${VERSION}.zip" dist/artifact/
+          cp dist/casks/hermes-desktop-app.rb dist/artifact/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: hermes-desktop-release
+          path: dist/artifact
+          if-no-files-found: error
+
+  publish:
+    needs: [detect, build]
+    if: github.repository == 'sidkang/homebrew' && needs.detect.outputs.should_build == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      # This checkout is only a Git worktree for the generated cask commit.
+      # No upstream pack scripts run in the write-permission publish job.
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: master
+          persist-credentials: true
+          fetch-depth: 1
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: hermes-desktop-release
+          path: release
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.detect.outputs.version }}
+          RELEASE_TAG: ${{ needs.detect.outputs.release_tag }}
+          UPSTREAM_TAG: ${{ needs.detect.outputs.tag }}
+          RELEASE_TARGET: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          zip=$(find release -name "Hermes-mac-arm64-${RELEASE_VERSION}.zip" -print -quit)
+          cask=$(find release -name 'hermes-desktop-app.rb' -print -quit)
+          test -f "$zip"
+          test -f "$cask"
+          cp "$cask" release/hermes-desktop-app.rb
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" "$zip" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_TARGET" \
+              --title "Hermes Desktop ${RELEASE_VERSION}" \
+              --notes "Unpacked Hermes.app packed from NousResearch/hermes-agent \`${UPSTREAM_TAG}\` with \`npm run pack\`. This is not the official Setup installer." \
+              --latest=false
+          fi
+      - name: Update Homebrew cask
+        env:
+          RELEASE_VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p Casks
+          cp release/hermes-desktop-app.rb Casks/hermes-desktop-app.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/hermes-desktop-app.rb
+          git diff --cached --quiet || git commit -m "chore(cask): release Hermes Desktop App ${RELEASE_VERSION}"
+          git push origin HEAD:master

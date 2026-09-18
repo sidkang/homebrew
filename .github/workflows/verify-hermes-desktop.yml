@@ -1,0 +1,44 @@
+name: Verify Hermes Desktop
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/verify-hermes-desktop.yml
+      - .github/workflows/release-hermes-desktop.yml
+      - tools/hermes-desktop/**
+      - Casks/hermes-desktop-app.rb
+  pull_request:
+    paths:
+      - .github/workflows/verify-hermes-desktop.yml
+      - .github/workflows/release-hermes-desktop.yml
+      - tools/hermes-desktop/**
+      - Casks/hermes-desktop-app.rb
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-hermes-desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Check module scripts
+        run: |
+          set -euo pipefail
+          bash -n tools/hermes-desktop/build.sh
+          bash -n tools/hermes-desktop/verify.sh
+          test -f tools/hermes-desktop/cask.rb.in
+          grep -q '__VERSION__' tools/hermes-desktop/cask.rb.in
+          grep -q '__SHA256__' tools/hermes-desktop/cask.rb.in
+          grep -q 'cask "hermes-desktop-app"' tools/hermes-desktop/cask.rb.in
+          grep -q 'npm run pack' tools/hermes-desktop/README.md
