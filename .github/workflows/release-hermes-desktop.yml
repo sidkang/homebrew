@@ -37,8 +37,8 @@ jobs:
           if [ -n "$TAG_INPUT" ]; then
             tag="$TAG_INPUT"
           else
-            tag=$(gh release view --repo NousResearch/hermes-agent --json tagName,isDraft,isPrerelease \
-              --jq 'if .isDraft or .isPrerelease then empty else .tag_name end')
+            tag=$(gh api repos/NousResearch/hermes-agent/releases/latest \
+              --jq 'select(.draft == false and .prerelease == false) | .tag_name')
             if [ -z "$tag" ]; then
               echo "No published non-prerelease upstream release."
               echo "should_build=false" >> "$GITHUB_OUTPUT"
