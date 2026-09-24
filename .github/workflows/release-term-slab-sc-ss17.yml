@@ -101,14 +101,19 @@ jobs:
             desc "Sarasa Term Slab SC with Iosevka SS17 Latin and Nerd Font icons"
             homepage "https://github.com/sidkang/homebrew/tree/master/fonts/term-slab-sc-ss17"
 
+            livecheck do
+              url "https://github.com/sidkang/homebrew/releases?q=term-slab-sc-ss17"
+              regex(/term-slab-sc-ss17[._-]v?(\d+(?:\.\d+)+)/i)
+            end
+
             font "TermSlabSCSS17.ttc"
           end
           EOF
-          tap="$(brew --repository)/Library/Taps/sidkang/homebrew-stylecheck"
-          mkdir -p "$tap/Casks"
-          cp Casks/font-term-slab-sc-ss17.rb "$tap/Casks/"
-          brew style --cask "$tap/Casks/font-term-slab-sc-ss17.rb"
-          brew audit --cask --online "$tap/Casks/font-term-slab-sc-ss17.rb"
+          brew tap sidkang/fonts
+          tap_cask="$(brew --repo sidkang/fonts)/Casks/font-term-slab-sc-ss17.rb"
+          cp Casks/font-term-slab-sc-ss17.rb "$tap_cask"
+          brew style --cask sidkang/fonts/font-term-slab-sc-ss17
+          brew audit --cask --online sidkang/fonts/font-term-slab-sc-ss17
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Casks/font-term-slab-sc-ss17.rb
