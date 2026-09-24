@@ -69,11 +69,11 @@ jobs:
             echo "nerd_url=$nerd_url"
             echo "nerd_sha256=$nerd_sha"
           } >> "$GITHUB_OUTPUT"
-          if [ "$current" = "$version" ]; then
-            echo "Already published $version"
+          if [ "$current" = "$file_version" ]; then
+            echo "Already published $file_version"
             echo "should_build=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Building $version"
+            echo "Building $file_version"
             echo "should_build=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -93,7 +93,7 @@ jobs:
           enable-cache: false
       - name: Build and verify
         env:
-          FONT_VERSION: ${{ needs.detect.outputs.version }}
+          FONT_VERSION: ${{ needs.detect.outputs.file_version }}
           SARASA_URL: ${{ needs.detect.outputs.sarasa_url }}
           SARASA_SHA256: ${{ needs.detect.outputs.sarasa_sha256 }}
           IOSEVKA_URL: ${{ needs.detect.outputs.iosevka_url }}
@@ -154,22 +154,22 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.detect.outputs.version }}
           FILE_VERSION: ${{ needs.detect.outputs.file_version }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p Casks
           cat > Casks/font-sarasa-term-slab-ss17-sc-nerd-font.rb <<EOF
           cask "font-sarasa-term-slab-ss17-sc-nerd-font" do
-            version "${RELEASE_VERSION}"
+            version "${FILE_VERSION}"
             sha256 "${sha256}"
 
-            url "https://github.com/sidkang/homebrew/releases/download/sarasa-term-slab-ss17-sc-nerd-font-v${FILE_VERSION}/SarasaTermSlabSS17SCNF-${FILE_VERSION}.zip"
+            url "https://github.com/sidkang/homebrew/releases/download/sarasa-term-slab-ss17-sc-nerd-font-v#{version}/SarasaTermSlabSS17SCNF-#{version}.zip"
             name "Sarasa Term Slab SS17 SC Nerd Font"
             desc "Sarasa Term Slab SC with SS17 Latin and Nerd Font icons"
             homepage "https://github.com/sidkang/homebrew/tree/master/fonts/sarasa-term-slab-ss17-sc-nerd-font"
 
             livecheck do
-              url "https://github.com/sidkang/homebrew/releases?q=sarasa-term-slab-ss17-sc-nerd-font-v"
-              regex(/sarasa-term-slab-ss17-sc-nerd-font-v(\\d+(?:\\.\\d+)+)-(\\d+(?:\\.\\d+)+)-(\\d+(?:\\.\\d+)+)/i)
+              skip "Rebuilt weekly from Sarasa, Iosevka Term Slab SS17, and Nerd Fonts"
             end
 
             font "SarasaTermSlabSS17SCNF.ttc"
