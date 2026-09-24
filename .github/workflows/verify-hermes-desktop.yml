@@ -41,4 +41,4 @@ jobs:
           grep -q '__VERSION__' tools/hermes-desktop/cask.rb.in
           grep -q '__SHA256__' tools/hermes-desktop/cask.rb.in
           grep -q 'cask "hermes-desktop-app"' tools/hermes-desktop/cask.rb.in
-          grep -q 'npm run pack' tools/hermes-desktop/README.md
+          grep -q 'pnpm run pack' tools/hermes-desktop/README.md

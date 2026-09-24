@@ -29,7 +29,7 @@ cask "hermes-desktop-app" do
   ]
 
   caveats <<~EOS
-    This is the unpacked Desktop app from `npm run pack`, not the official
+    This is the unpacked Desktop app from `pnpm run pack`, not the official
     Hermes-Setup installer. The build is unsigned, so install with:
 
       brew install --cask --no-quarantine hermes-desktop-app

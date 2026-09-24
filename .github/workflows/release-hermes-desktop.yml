@@ -82,10 +82,17 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 26
-          cache: npm
-          cache-dependency-path: .upstream/hermes-agent/package-lock.json
-      - name: Use npm 12
-        run: npm i -g npm@12
+      # Upstream pins pnpm in its own pm/lock.json and the repository root
+      # preinstall hook refuses every other version. setup-node's dependency
+      # cache is deliberately unused here: a cache-dependency-path that upstream
+      # removed (the npm lockfile, gone in 0.23.1) fails the run before the
+      # build starts instead of falling back.
+      - name: Install locked pnpm
+        run: |
+          set -euo pipefail
+          pnpm_version=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["packages"]["pnpm"]["version"])' .upstream/hermes-agent/pm/lock.json)
+          npm i -g "pnpm@${pnpm_version}"
+          pnpm --version
       - name: Pack unpacked desktop app
         env:
           HERMES_SOURCE: ${{ github.workspace }}/.upstream/hermes-agent
@@ -154,7 +161,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --target "$RELEASE_TARGET" \
               --title "Hermes Desktop ${RELEASE_VERSION}" \
-              --notes "Unpacked Hermes.app packed from NousResearch/hermes-agent \`${UPSTREAM_TAG}\` with \`npm run pack\`. This is not the official Setup installer." \
+              --notes "Unpacked Hermes.app packed from NousResearch/hermes-agent \`${UPSTREAM_TAG}\` with \`pnpm run pack\`. This is not the official Setup installer." \
               --latest=false
           fi
       - name: Update Homebrew cask

@@ -51,7 +51,7 @@ print("BUILD-INFO.json:", json.dumps(info, indent=2))
 assert info["upstream_repository"] == "NousResearch/hermes-agent", info
 assert info["version"] == "$VERSION", info
 assert info["upstream_tag"] in {"$VERSION", "v$VERSION"}, info
-assert info["pack_command"] == "npm run pack", info
+assert info["pack_command"] == "pnpm run pack", info
 assert len(info["upstream_commit"]) == 40, info
 PY
 

@@ -17,6 +17,27 @@ if [[ ! -f "$HERMES_SOURCE/package.json" || ! -f "$HERMES_SOURCE/apps/desktop/pa
   exit 1
 fi
 
+# Upstream 0.23.1 moved to a pnpm workspace: the root preinstall hook refuses
+# every pnpm but the one pinned in pm/lock.json, and npm ci has no lockfile left
+# to read. The pin lives in that file, not in this module, so a re-pin upstream
+# needs no change here.
+PM_LOCK="$HERMES_SOURCE/pm/lock.json"
+if [[ ! -f "$PM_LOCK" ]]; then
+  echo "No pm/lock.json under $HERMES_SOURCE; the tag predates the pnpm workspace." >&2
+  exit 1
+fi
+PNPM_VERSION=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["packages"]["pnpm"]["version"])' "$PM_LOCK")
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "pnpm $PNPM_VERSION is required by $PM_LOCK. Install: npm i -g pnpm@$PNPM_VERSION" >&2
+  exit 1
+fi
+ACTUAL_PNPM=$(pnpm --version)
+if [[ "$ACTUAL_PNPM" != "$PNPM_VERSION" ]]; then
+  echo "pnpm $PNPM_VERSION is required by $PM_LOCK, found $ACTUAL_PNPM." >&2
+  echo "Install: npm i -g pnpm@$PNPM_VERSION" >&2
+  exit 1
+fi
+
 DIST_ROOT="$REPO_ROOT/dist"
 RELEASE_DIR="$DIST_ROOT/releases"
 CASK_DIR="$DIST_ROOT/casks"
@@ -34,8 +55,10 @@ export CI=1
 
 (
   cd "$HERMES_SOURCE"
-  npm ci
-  npm --prefix apps/desktop run pack
+  # The desktop workspace install and the locked Electron binary are one step
+  # upstream: a bare `pnpm install` leaves the packager without a runtime.
+  node scripts/build/node-deps.mjs --source . --reuse --workspace apps/desktop
+  pnpm --filter hermes run pack
 )
 
 RELEASE_ROOT="$HERMES_SOURCE/apps/desktop/release"
@@ -65,7 +88,7 @@ Path("$STAGE_DIR/BUILD-INFO.json").write_text(
             "upstream_tag": "$UPSTREAM_TAG",
             "upstream_commit": "$UPSTREAM_COMMIT",
             "version": "$VERSION",
-            "pack_command": "npm run pack",
+            "pack_command": "pnpm run pack",
             "app": "Hermes.app",
         },
         indent=2,

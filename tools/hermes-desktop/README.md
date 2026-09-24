@@ -1,6 +1,6 @@
 # Hermes Desktop App
 
-Unpacked macOS Apple Silicon build of [Hermes Desktop](https://github.com/NousResearch/hermes-agent/tree/main/apps/desktop), produced with the official `npm run pack` path. This is the Electron app (`Hermes.app`), not the website Setup installer.
+Unpacked macOS Apple Silicon build of [Hermes Desktop](https://github.com/NousResearch/hermes-agent/tree/main/apps/desktop), produced with the official `pnpm run pack` path. This is the Electron app (`Hermes.app`), not the website Setup installer.
 
 GitHub Actions watches [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) releases every six hours, packs the tagged source, and publishes a cask in this tap.
 
@@ -33,19 +33,28 @@ On first launch the app can connect to an existing Hermes gateway or install a l
 
 ## Build
 
+Required toolchain matches upstream CI: Node 26, Xcode CLT, and the pnpm version
+pinned in the upstream `pm/lock.json` (12.15.0 for Hermes 0.23.1). The upstream
+root `preinstall` hook refuses every other pnpm, so `build.sh` checks the
+installed version against that pin before it touches the checkout.
+
 From a macOS Apple Silicon machine, with the official source checked out:
 
 ```bash
 export HERMES_SOURCE=/path/to/hermes-agent
-export VERSION=2026.9.14   # upstream tag without the leading v
+export VERSION=0.23.1   # upstream tag without the leading v
+npm i -g pnpm@12.15.0   # the version pinned in $HERMES_SOURCE/pm/lock.json
 tools/hermes-desktop/build.sh
 tools/hermes-desktop/verify.sh
 ```
 
-Required toolchain matches upstream CI: Node 26, npm 12, Xcode CLT. The pack command is:
+The pack command `build.sh` runs inside the checkout is:
 
 ```bash
-npm ci                 # repository root
-cd apps/desktop
-npm run pack           # unpacked app, no installer
+node scripts/build/node-deps.mjs --source . --reuse --workspace apps/desktop
+pnpm --filter hermes run pack    # unpacked app, no installer
 ```
+
+The first command is upstream's own preparation step: it installs the locked
+workspace graph and prepares the Electron binary. A bare `pnpm install` leaves
+the packager without a runtime and fails at `electron-builder`.
