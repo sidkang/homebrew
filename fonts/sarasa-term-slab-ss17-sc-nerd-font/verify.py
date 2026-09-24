@@ -71,7 +71,7 @@ def advance(font, glyph_name: str) -> int:
 
 
 def verify(repo_root: Path) -> None:
-    output = repo_root / "dist" / "term-slab-sc-ss17"
+    output = repo_root / "dist" / "sarasa-term-slab-ss17-sc-nerd-font"
     cache = output / "cache"
     collection_path = output / f"{POSTSCRIPT_FAMILY}.ttc"
     info = json.loads((output / "BUILD-INFO.json").read_text())

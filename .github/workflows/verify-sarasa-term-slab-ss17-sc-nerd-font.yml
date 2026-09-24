@@ -1,24 +1,24 @@
-name: Verify Term Slab SC SS17
+name: Verify Sarasa Term Slab SS17 SC Nerd Font
 
 on:
   push:
     branches: [master]
     paths:
-      - .github/workflows/verify-term-slab-sc-ss17.yml
-      - .github/workflows/release-term-slab-sc-ss17.yml
-      - fonts/term-slab-sc-ss17/**
+      - .github/workflows/verify-sarasa-term-slab-ss17-sc-nerd-font.yml
+      - .github/workflows/release-sarasa-term-slab-ss17-sc-nerd-font.yml
+      - fonts/sarasa-term-slab-ss17-sc-nerd-font/**
   pull_request:
     paths:
-      - .github/workflows/verify-term-slab-sc-ss17.yml
-      - .github/workflows/release-term-slab-sc-ss17.yml
-      - fonts/term-slab-sc-ss17/**
+      - .github/workflows/verify-sarasa-term-slab-ss17-sc-nerd-font.yml
+      - .github/workflows/release-sarasa-term-slab-ss17-sc-nerd-font.yml
+      - fonts/sarasa-term-slab-ss17-sc-nerd-font/**
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: verify-term-slab-sc-ss17-${{ github.workflow }}-${{ github.ref }}
+  group: verify-sarasa-term-slab-ss17-sc-nerd-font-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -35,9 +35,9 @@ jobs:
           version: 0.11.28
           enable-cache: false
       - name: Build and verify
-        run: fonts/term-slab-sc-ss17/build.sh
+        run: fonts/sarasa-term-slab-ss17-sc-nerd-font/build.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: term-slab-sc-ss17
-          path: dist/releases/TermSlabSCSS17-*.zip
+          name: sarasa-term-slab-ss17-sc-nerd-font
+          path: dist/releases/SarasaTermSlabSS17SCNF-*.zip
           if-no-files-found: error

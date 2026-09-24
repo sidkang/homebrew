@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import urllib.request
 import zipfile
@@ -18,9 +19,9 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTCollection, TTFont
 from fontTools.ttLib.tables.ttProgram import Program
 
-FAMILY = "Term Slab SC SS17"
-VERSION = "1.0.0"
-POSTSCRIPT_FAMILY = "TermSlabSCSS17"
+FAMILY = "Sarasa Term Slab SS17 SC Nerd Font"
+VERSION = "1.0.41,34.7.0,3.5.1"
+POSTSCRIPT_FAMILY = "SarasaTermSlabSS17SCNF"
 SPINNER = range(0xF800, 0xF840)
 IOSEVKA_RANGES = (
     range(0x0020, 0x0250),
@@ -70,6 +71,25 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def apply_source_overrides() -> None:
+    overrides = {
+        "sarasa": ("SARASA_URL", "SARASA_SHA256"),
+        "iosevka": ("IOSEVKA_URL", "IOSEVKA_SHA256"),
+        "nerd": ("NERD_URL", "NERD_SHA256"),
+    }
+    for key, (url_name, sha_name) in overrides.items():
+        url = os.environ.get(url_name)
+        digest = os.environ.get(sha_name)
+        if url:
+            SOURCES[key]["url"] = url
+        if digest:
+            SOURCES[key]["sha256"] = digest
+    version = os.environ.get("FONT_VERSION")
+    if version:
+        global VERSION
+        VERSION = version
+
+
 def download(url: str, path: Path, expected: str) -> None:
     if path.exists() and sha256(path) == expected:
         return
@@ -83,16 +103,20 @@ def download(url: str, path: Path, expected: str) -> None:
     temporary.replace(path)
 
 
-def extract(archive: Path, destination: Path) -> None:
-    if destination.exists():
+def extract(archive: Path, destination: Path, expected: str) -> None:
+    stamp = destination / ".sha256"
+    if stamp.exists() and stamp.read_text().strip() == expected:
         return
+    if destination.exists():
+        shutil.rmtree(destination)
     destination.mkdir(parents=True)
     if archive.suffix == ".7z":
         with py7zr.SevenZipFile(archive, mode="r") as archive_file:
             archive_file.extractall(path=destination)
-        return
-    with zipfile.ZipFile(archive) as archive_file:
-        archive_file.extractall(destination)
+    else:
+        with zipfile.ZipFile(archive) as archive_file:
+            archive_file.extractall(destination)
+    stamp.write_text(expected + "\n")
 
 
 def font_names(font: TTFont, name_id: int) -> set[str]:
@@ -330,8 +354,9 @@ def realize(described: dict[str, object]) -> TTFont:
 
 
 def build(module_dir: Path, repo_root: Path) -> None:
-    cache = repo_root / "dist" / "term-slab-sc-ss17" / "cache"
-    output = repo_root / "dist" / "term-slab-sc-ss17"
+    apply_source_overrides()
+    cache = repo_root / "dist" / "sarasa-term-slab-ss17-sc-nerd-font" / "cache"
+    output = repo_root / "dist" / "sarasa-term-slab-ss17-sc-nerd-font"
     release = repo_root / "dist" / "releases"
     output.mkdir(parents=True, exist_ok=True)
     release.mkdir(parents=True, exist_ok=True)
@@ -341,7 +366,7 @@ def build(module_dir: Path, repo_root: Path) -> None:
         archive = cache / filename
         download(source["url"], archive, source["sha256"])
         destination = cache / key
-        extract(archive, destination)
+        extract(archive, destination, source["sha256"])
         extracted[key] = destination
 
     sarasa = select_faces(extracted["sarasa"], SOURCES["sarasa"]["family"])
@@ -411,7 +436,7 @@ def build(module_dir: Path, repo_root: Path) -> None:
     shutil.copy(module_dir / "README.md", stage / "README.md")
     shutil.copytree(module_dir / "licenses", stage / "licenses")
     shutil.copy(output / "BUILD-INFO.json", stage / "BUILD-INFO.json")
-    archive = release / f"{POSTSCRIPT_FAMILY}-{VERSION}.zip"
+    archive = release / f"{POSTSCRIPT_FAMILY}-{VERSION.replace(',', '-')}.zip"
     if archive.exists():
         archive.unlink()
     shutil.make_archive(archive.with_suffix(""), "zip", stage)

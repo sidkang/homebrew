@@ -1,0 +1,190 @@
+name: Release Sarasa Term Slab SS17 SC Nerd Font
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-sarasa-term-slab-ss17-sc-nerd-font
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    if: github.repository == 'sidkang/homebrew'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      should_build: ${{ steps.detect.outputs.should_build }}
+      version: ${{ steps.detect.outputs.version }}
+      file_version: ${{ steps.detect.outputs.file_version }}
+      sarasa_url: ${{ steps.detect.outputs.sarasa_url }}
+      sarasa_sha256: ${{ steps.detect.outputs.sarasa_sha256 }}
+      iosevka_url: ${{ steps.detect.outputs.iosevka_url }}
+      iosevka_sha256: ${{ steps.detect.outputs.iosevka_sha256 }}
+      nerd_url: ${{ steps.detect.outputs.nerd_url }}
+      nerd_sha256: ${{ steps.detect.outputs.nerd_sha256 }}
+    steps:
+      - id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sarasa_tag=$(gh api repos/be5invis/Sarasa-Gothic/releases/latest --jq .tag_name)
+          nerd_tag=$(gh api repos/ryanoasis/nerd-fonts/releases/latest --jq .tag_name)
+          sarasa_version=${sarasa_tag#v}
+          nerd_version=${nerd_tag#v}
+          iosevka_version=$(gh api repos/sidkang/homebrew/contents/Casks/font-iosevka-term-slab-ss17.rb \
+            -H "Accept: application/vnd.github.raw" | awk -F'"' '/^  version / {print $2; exit}')
+          version="${sarasa_version},${iosevka_version},${nerd_version}"
+          file_version="${sarasa_version}-${iosevka_version}-${nerd_version}"
+          sarasa_file="SarasaTermSlabSC-TTF-${sarasa_version}.7z"
+          sarasa_url="https://github.com/be5invis/Sarasa-Gothic/releases/download/${sarasa_tag}/${sarasa_file}"
+          nerd_url="https://github.com/ryanoasis/nerd-fonts/releases/download/${nerd_tag}/IosevkaTerm.zip"
+          iosevka_url="https://github.com/sidkang/homebrew/releases/download/iosevka-term-slab-ss17-v${iosevka_version}/IosevkaTermSlabSS17-${iosevka_version}.zip"
+          sarasa_sha=$(curl -fsSL "https://github.com/be5invis/Sarasa-Gothic/releases/download/${sarasa_tag}/SHA-256.txt" \
+            | awk -v name="$sarasa_file" '$NF == name {print $1; exit}')
+          nerd_sha=$(curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/download/${nerd_tag}/SHA-256.txt" \
+            | awk '$NF == "IosevkaTerm.zip" {print $1; exit}')
+          iosevka_sha=$(gh api repos/sidkang/homebrew/contents/Casks/font-iosevka-term-slab-ss17.rb \
+            -H "Accept: application/vnd.github.raw" | awk -F'"' '/^  sha256 / {print $2; exit}')
+          test -n "$sarasa_sha"
+          test -n "$nerd_sha"
+          test -n "$iosevka_sha"
+          current=""
+          if gh api repos/sidkang/homebrew/contents/Casks/font-sarasa-term-slab-ss17-sc-nerd-font.rb \
+            -H "Accept: application/vnd.github.raw" > /tmp/current-cask.rb 2>/dev/null; then
+            current=$(awk -F'"' '/^  version / {print $2; exit}' /tmp/current-cask.rb)
+          fi
+          {
+            echo "version=$version"
+            echo "file_version=$file_version"
+            echo "sarasa_url=$sarasa_url"
+            echo "sarasa_sha256=$sarasa_sha"
+            echo "iosevka_url=$iosevka_url"
+            echo "iosevka_sha256=$iosevka_sha"
+            echo "nerd_url=$nerd_url"
+            echo "nerd_sha256=$nerd_sha"
+          } >> "$GITHUB_OUTPUT"
+          if [ "$current" = "$version" ]; then
+            echo "Already published $version"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Building $version"
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: detect
+    if: github.repository == 'sidkang/homebrew' && needs.detect.outputs.should_build == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: 0.11.28
+          enable-cache: false
+      - name: Build and verify
+        env:
+          FONT_VERSION: ${{ needs.detect.outputs.version }}
+          SARASA_URL: ${{ needs.detect.outputs.sarasa_url }}
+          SARASA_SHA256: ${{ needs.detect.outputs.sarasa_sha256 }}
+          IOSEVKA_URL: ${{ needs.detect.outputs.iosevka_url }}
+          IOSEVKA_SHA256: ${{ needs.detect.outputs.iosevka_sha256 }}
+          NERD_URL: ${{ needs.detect.outputs.nerd_url }}
+          NERD_SHA256: ${{ needs.detect.outputs.nerd_sha256 }}
+        run: fonts/sarasa-term-slab-ss17-sc-nerd-font/build.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sarasa-nerd-font-release
+          path: dist/releases/SarasaTermSlabSS17SCNF-${{ needs.detect.outputs.file_version }}.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [detect, build]
+    if: github.repository == 'sidkang/homebrew' && needs.detect.outputs.should_build == 'true'
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: master
+          persist-credentials: true
+          fetch-depth: 1
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: sarasa-nerd-font-release
+          path: release
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.detect.outputs.version }}
+          FILE_VERSION: ${{ needs.detect.outputs.file_version }}
+          RELEASE_TARGET: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          tag="sarasa-term-slab-ss17-sc-nerd-font-v${FILE_VERSION}"
+          built=$(find release -name "SarasaTermSlabSS17SCNF-${FILE_VERSION}.zip" -print -quit)
+          test -f "$built"
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" "$built" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_TARGET" \
+              --title "Sarasa Term Slab SS17 SC Nerd Font ${FILE_VERSION}" \
+              --notes "Sarasa Term Slab SC ${RELEASE_VERSION%%,*} with Iosevka Term Slab SS17 and IosevkaTerm Nerd Font Mono. The spinner range U+F800-U+F83F is omitted." \
+              --latest=false
+          fi
+          mkdir -p published
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern "SarasaTermSlabSS17SCNF-${FILE_VERSION}.zip" --dir published
+          published_zip="published/SarasaTermSlabSS17SCNF-${FILE_VERSION}.zip"
+          test -f "$published_zip"
+          test "$(shasum -a 256 "$built" | awk '{print $1}')" = "$(shasum -a 256 "$published_zip" | awk '{print $1}')"
+          echo "sha256=$(shasum -a 256 "$published_zip" | awk '{print $1}')" >> "$GITHUB_ENV"
+      - name: Update Homebrew cask
+        env:
+          RELEASE_VERSION: ${{ needs.detect.outputs.version }}
+          FILE_VERSION: ${{ needs.detect.outputs.file_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p Casks
+          cat > Casks/font-sarasa-term-slab-ss17-sc-nerd-font.rb <<EOF
+          cask "font-sarasa-term-slab-ss17-sc-nerd-font" do
+            version "${RELEASE_VERSION}"
+            sha256 "${sha256}"
+
+            url "https://github.com/sidkang/homebrew/releases/download/sarasa-term-slab-ss17-sc-nerd-font-v${FILE_VERSION}/SarasaTermSlabSS17SCNF-${FILE_VERSION}.zip"
+            name "Sarasa Term Slab SS17 SC Nerd Font"
+            desc "Sarasa Term Slab SC with SS17 Latin and Nerd Font icons"
+            homepage "https://github.com/sidkang/homebrew/tree/master/fonts/sarasa-term-slab-ss17-sc-nerd-font"
+
+            livecheck do
+              url "https://github.com/sidkang/homebrew/releases?q=sarasa-term-slab-ss17-sc-nerd-font-v"
+              regex(/sarasa-term-slab-ss17-sc-nerd-font-v(\\d+(?:\\.\\d+)+)-(\\d+(?:\\.\\d+)+)-(\\d+(?:\\.\\d+)+)/i)
+            end
+
+            font "SarasaTermSlabSS17SCNF.ttc"
+          end
+          EOF
+          if [ -f Casks/font-term-slab-sc-ss17.rb ]; then
+            git rm -f Casks/font-term-slab-sc-ss17.rb
+          fi
+          brew tap sidkang/fonts
+          tap_dir="$(brew --repo sidkang/fonts)/Casks"
+          cp Casks/font-sarasa-term-slab-ss17-sc-nerd-font.rb "$tap_dir/"
+          brew style --cask sidkang/fonts/font-sarasa-term-slab-ss17-sc-nerd-font
+          brew audit --cask --online sidkang/fonts/font-sarasa-term-slab-ss17-sc-nerd-font
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/font-sarasa-term-slab-ss17-sc-nerd-font.rb
+          git diff --cached --quiet || git commit -m "chore(cask): release Sarasa Term Slab SS17 SC Nerd Font ${FILE_VERSION}"
+          git push origin HEAD:master
