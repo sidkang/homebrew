@@ -1,6 +1,6 @@
 cask "hermes-desktop-app" do
-  version "0.22.0"
-  sha256 "474cd19c83f2efd610011b89e12faf5c707e6ebf24e9851297626cf59da669de"
+  version "0.22.1"
+  sha256 "e26dd578af15aeb1233b44b82e96f5a6f1fff679c43a9e8a3fada21c84d4b65e"
 
   url "https://github.com/sidkang/homebrew/releases/download/hermes-desktop-v#{version}/Hermes-mac-arm64-#{version}.zip"
   name "Hermes Desktop App"
