@@ -1,6 +1,6 @@
 # Iosevka Term Slab SS17
 
-A custom [Iosevka](https://github.com/be5invis/Iosevka) terminal font that combines three independent upstream options:
+A custom [Iosevka](https://github.com/be5invis/Iosevka) terminal font combining three upstream options:
 
 ```text
 Term  → terminal-width arrows and geometric symbols
@@ -10,44 +10,46 @@ SS17  → Recursive Mono-style character variants
 
 ## Naming and scope
 
-The family follows Iosevka's official word order:
+The family follows Iosevka naming conventions:
 
 ```text
 Iosevka Term Slab
 Iosevka Term SS17
-Iosevka Term Slab SS17  ← this custom combination
+Iosevka Term Slab SS17  ← this combination
 ```
 
-The official prebuilt packages provide the first two families but not their combination.
+Upstream packages provide the first two combinations, but not both together.
 
-This module intentionally generates the six natural combinations of its practical weights and slopes, not every face in the upstream package:
+This build generates ten faces covering five weights and two slopes:
 
 ```text
-Regular
-Semibold
-Bold
-Italic
-Semibold Italic
-Bold Italic
+Extralight        Extralight Italic
+Light             Light Italic
+Regular           Italic
+Semibold          Semibold Italic
+Bold              Bold Italic
 ```
 
-They are packaged into one TrueType Collection (TTC), so macOS installs one file while exposing all six faces. A TTC reduces file count; it does not promise a proportional byte-size reduction because fonts only share data where their tables allow it.
-
-For those faces, the build plan matches official `Iosevka Term SS17` settings and adds only the slab-serif configuration. The narrowed output scope is intentional.
+All ten faces are packaged into a single TrueType Collection (`IosevkaTermSlabSS17.ttc`).
+The build plan inherits official `Iosevka Term SS17` settings with slab-serif geometry added.
 
 ## Source and toolchain
 
-The Iosevka source is fixed at `v34.7.0` / `6828cb0bd569992bb19565a5e448540de3b50541`.
+Source is pinned to upstream commit `6828cb0bd569992bb19565a5e448540de3b50541` (`v34.7.0`).
 
-The builder uses the current `node:22-bookworm-slim` image and Debian Bookworm's `ttfautohint`; those toolchain packages are intentionally not version-pinned. It records the pinned source commit date, installs dependencies without lifecycle scripts, then builds offline with at most two Iosevka jobs by default.
-
-This makes the source traceable, but does not claim byte-for-byte identical output across future toolchain updates. In particular, Iosevka's TTC assembly may rewrite internal OpenType timestamps. CI verifies the generated TTC's intended contents and metrics on every build.
+The build container uses `node:22-bookworm-slim` and Debian Bookworm's `ttfautohint`. The build script records the source commit timestamp, installs dependencies without lifecycle scripts, and compiles offline with at most two build jobs.
 
 ## Build
 
-GitHub Actions is the only build path. It checks out the exact upstream source commit, builds the TTC in Docker, verifies it, and uploads a CI artifact on relevant pushes and pull requests.
+GitHub Actions is the supported build path. It checks out the pinned commit, builds the TTC inside Docker, verifies font tables and metrics, and uploads a workflow artifact.
 
-There is intentionally no supported local build command. Download the workflow artifact to test a candidate build, or use a versioned GitHub Release for durable installation.
+Local builds are not supported.
+
+## Versions
+
+Upstream version is `34.7.0`. The published release `34.7.0` provides six faces. The ten-face collection is prepared as `34.7.0-r2` (tag `iosevka-term-slab-ss17-v34.7.0-r2`), pending publication.
+
+Release assets are immutable. The release workflow never overwrites an existing release asset; if the release tag exists, it updates the Homebrew cask using the published asset's SHA-256.
 
 ## Outputs
 
@@ -56,30 +58,42 @@ dist/iosevka-term-slab-ss17/
 ├── IosevkaTermSlabSS17.ttc
 └── BUILD-INFO.json
 
-dist/releases/IosevkaTermSlabSS17-34.7.0.zip
+dist/releases/IosevkaTermSlabSS17-34.7.0-r2.zip
 ```
 
-The verifier parses the build and collection plans, checks that the TTC has exactly the six intended faces, validates name metadata and required OpenType tables, checks all printable ASCII and selected terminal-symbol advances, and writes SHA-256 provenance to `BUILD-INFO.json`.
+The verifier checks build and collection plans, validates all ten faces, checks name metadata, weight classes, required OpenType tables, and ASCII and symbol advances, and records SHA-256 provenance in `BUILD-INFO.json`.
 
-## Install on macOS
+## Installation
 
-Download `IosevkaTermSlabSS17-34.7.0.zip` from a successful CI artifact or GitHub Release, extract it, then use this module's installer to copy the single TTC into the per-user font directory:
+### Homebrew
+
+The published cask currently provides the six-face `34.7.0` release:
+
+```bash
+brew install --cask sidkang/fonts/font-iosevka-term-slab-ss17
+```
+
+Once `34.7.0-r2` publishes, the cask updates to the ten-face collection.
+
+### Manual install
+
+Download `IosevkaTermSlabSS17-34.7.0-r2.zip` from a CI artifact or GitHub Release, extract it, and run:
 
 ```bash
 fonts/iosevka-term-slab-ss17/install.sh IosevkaTermSlabSS17.ttc
 ```
 
-The installed file is:
+This installs to:
 
 ```text
 ~/Library/Fonts/IosevkaTermSlabSS17.ttc
 ```
 
-Quit and reopen Kitty after installing or replacing the file.
+Restart Kitty after installing or updating the font.
 
-### Kitty
+### Kitty configuration
 
-Use the family normally and let Kitty select the standard linked faces:
+Use the family and let Kitty select linked faces:
 
 ```conf
 font_family Iosevka Term Slab SS17
@@ -88,7 +102,7 @@ italic_font auto
 bold_italic_font auto
 ```
 
-The collection also provides `Semibold` and `Semibold Italic`. To use Semibold as Kitty's bold weight instead of Bold, set:
+To use Semibold as the bold weight instead of Bold:
 
 ```conf
 bold_font Iosevka Term Slab SS17 Semibold
@@ -97,4 +111,4 @@ bold_italic_font Iosevka Term Slab SS17 Semibold Italic
 
 ## License
 
-The font is licensed under the SIL Open Font License 1.1. See [`OFL.txt`](OFL.txt). The repository's build orchestration is MIT licensed.
+The font is licensed under the SIL Open Font License 1.1. See [`OFL.txt`](OFL.txt). Build scripts and orchestration use the root MIT license.

@@ -5,11 +5,15 @@ MODULE_DIR=$(cd "$(dirname "$0")" && pwd)
 REPO_ROOT=$(cd "$MODULE_DIR/../.." && pwd)
 UPSTREAM_REVISION="6828cb0bd569992bb19565a5e448540de3b50541"
 VERSION="34.7.0"
+# Releases are immutable. Rebuilding an upstream version with a changed font
+# set requires an incremented revision: "$VERSION-r$RELEASE_REVISION".
+RELEASE_REVISION=2
+RELEASE_VERSION="$VERSION-r$RELEASE_REVISION"
 PLAN="IosevkaTermSlabSS17"
 SOURCE_DIR=${IOSEVKA_SOURCE:-"$HOME/.cache/checkouts/github.com/be5invis/Iosevka"}
 JOBS=${IOSEVKA_JOBS:-2}
 OUTPUT_DIR="$REPO_ROOT/dist/iosevka-term-slab-ss17"
-ARCHIVE="$REPO_ROOT/dist/releases/IosevkaTermSlabSS17-$VERSION.zip"
+ARCHIVE="$REPO_ROOT/dist/releases/IosevkaTermSlabSS17-$RELEASE_VERSION.zip"
 IMAGE="sidkang/fonts-iosevka-builder:34.7.0"
 
 if ! [[ "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
@@ -46,7 +50,7 @@ cp "$MODULE_DIR/private-build-plans.toml" "$source_copy/private-build-plans.toml
 
 docker build --tag "$IMAGE" "$MODULE_DIR/toolchain"
 
-# Dependency installation is the only networked step. The actual font build runs offline.
+# Install dependencies. Build step below runs with network disabled.
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   --env HOME=/tmp \
@@ -70,7 +74,7 @@ rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 source_font="$source_copy/dist/.super-ttc/$PLAN.ttc"
 if [[ ! -f "$source_font" ]]; then
-  echo "Expected build output is missing: $source_font" >&2
+  echo "Build output not found: $source_font" >&2
   exit 1
 fi
 output_font="$OUTPUT_DIR/$PLAN.ttc"
@@ -81,6 +85,7 @@ uv run "$MODULE_DIR/verify.py" \
   --module-dir "$MODULE_DIR" \
   --upstream-build-plans "$source_copy/build-plans.toml" \
   --archive "$ARCHIVE" \
+  --release-version "$RELEASE_VERSION" \
   --source-date-epoch "$source_date_epoch"
 
 echo "built $OUTPUT_DIR"

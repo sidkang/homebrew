@@ -1,5 +1,5 @@
-# Official Iosevka v34.7.0 custom build plan.
-# Naming follows the upstream order: Iosevka Term Slab + SS17.
+# Custom Iosevka v34.7.0 build plan.
+# Naming order: Iosevka Term Slab + SS17.
 [buildPlans.IosevkaTermSlabSS17]
 family = "Iosevka Term Slab SS17"
 desc = "Terminal slab-serif variant in Recursive Mono (SS17) style"
@@ -12,6 +12,16 @@ noCvSs = true
 
 [buildPlans.IosevkaTermSlabSS17.variants]
 inherits = "ss17"
+
+[buildPlans.IosevkaTermSlabSS17.weights.ExtraLight]
+shape = 200
+menu = 200
+css = 200
+
+[buildPlans.IosevkaTermSlabSS17.weights.Light]
+shape = 300
+menu = 300
+css = 300
 
 [buildPlans.IosevkaTermSlabSS17.weights.Regular]
 shape = 400
@@ -45,6 +55,6 @@ shape = 500
 menu = 5
 css = "normal"
 
-# One TTC installs all six selected faces as one macOS font file.
+# Single TTC containing all ten selected faces.
 [collectPlans.IosevkaTermSlabSS17]
 from = ["IosevkaTermSlabSS17"]

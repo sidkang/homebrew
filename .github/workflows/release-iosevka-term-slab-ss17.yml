@@ -14,9 +14,9 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'sidkang/homebrew-fonts'
+    if: github.repository == 'sidkang/homebrew'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     outputs:
       version: ${{ steps.version.outputs.value }}
     steps:
@@ -45,14 +45,14 @@ jobs:
         name: Validate version tag
         run: |
           set -euo pipefail
-          source_version=$(python3 - <<'PY'
+          release_version=$(python3 - <<'PY'
           import json
           from pathlib import Path
-          print(json.loads(Path("dist/iosevka-term-slab-ss17/BUILD-INFO.json").read_text())["source"]["version"])
+          print(json.loads(Path("dist/iosevka-term-slab-ss17/BUILD-INFO.json").read_text())["release_version"])
           PY
           )
-          test "$GITHUB_REF_NAME" = "iosevka-term-slab-ss17-v$source_version"
-          echo "value=$source_version" >> "$GITHUB_OUTPUT"
+          test "$GITHUB_REF_NAME" = "iosevka-term-slab-ss17-v$release_version"
+          echo "value=$release_version" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: iosevka-term-slab-ss17-release
@@ -66,8 +66,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      # This checkout is only a Git worktree for the generated cask commit.
-      # No repository code runs in the write-permission publish job.
+      # Clean checkout for cask commit. No repository code runs in the publish job.
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           ref: master
@@ -85,28 +84,33 @@ jobs:
         run: |
           set -euo pipefail
           tag="iosevka-term-slab-ss17-v${RELEASE_VERSION}"
+          asset="IosevkaTermSlabSS17-${RELEASE_VERSION}.zip"
+          # Releases are immutable. If the release exists, use the published asset.
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$tag" release/IosevkaTermSlabSS17-"${RELEASE_VERSION}".zip \
+            gh release create "$tag" "release/$asset" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$RELEASE_TARGET" \
               --title "Iosevka Term Slab SS17 ${RELEASE_VERSION}" \
               --generate-notes
           fi
+          mkdir -p published
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir published
+          test -f "published/$asset"
+          echo "sha256=$(sha256sum "published/$asset" | awk '{print $1}')" >> "$GITHUB_ENV"
       - name: Update Homebrew cask
         env:
           RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
-          sha256=$(sha256sum "release/IosevkaTermSlabSS17-${RELEASE_VERSION}.zip" | awk '{print $1}')
           cat > Casks/font-iosevka-term-slab-ss17.rb <<EOF
           cask "font-iosevka-term-slab-ss17" do
             version "${RELEASE_VERSION}"
             sha256 "${sha256}"
 
-            url "https://github.com/sidkang/homebrew-fonts/releases/download/iosevka-term-slab-ss17-v${RELEASE_VERSION}/IosevkaTermSlabSS17-${RELEASE_VERSION}.zip"
+            url "https://github.com/sidkang/homebrew/releases/download/iosevka-term-slab-ss17-v${RELEASE_VERSION}/IosevkaTermSlabSS17-${RELEASE_VERSION}.zip"
             name "Iosevka Term Slab SS17"
             desc "Terminal-width slab-serif Iosevka in SS17 style"
-            homepage "https://github.com/sidkang/homebrew-fonts/tree/master/fonts/iosevka-term-slab-ss17"
+            homepage "https://github.com/sidkang/homebrew/tree/master/fonts/iosevka-term-slab-ss17"
 
             font "IosevkaTermSlabSS17.ttc"
           end
