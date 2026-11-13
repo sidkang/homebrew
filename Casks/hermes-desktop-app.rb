@@ -1,6 +1,6 @@
 cask "hermes-desktop-app" do
-  version "0.23.0"
-  sha256 "41dc795f867fcb9f5fd379bfd3ff5cc601e5639dda76c6fb830cf7510c6d9f48"
+  version "0.23.1"
+  sha256 "dca2ddbede828d8fde73e132fe72fa644a71f25dee82bae2fff5eb5f4d995a35"
 
   url "https://github.com/sidkang/homebrew/releases/download/hermes-desktop-v#{version}/Hermes-mac-arm64-#{version}.zip"
   name "Hermes Desktop App"
@@ -29,7 +29,7 @@ cask "hermes-desktop-app" do
   ]
 
   caveats <<~EOS
-    This is the unpacked Desktop app from `npm run pack`, not the official
+    This is the unpacked Desktop app from `pnpm run pack`, not the official
     Hermes-Setup installer. The build is unsigned, so install with:
 
       brew install --cask --no-quarantine hermes-desktop-app
