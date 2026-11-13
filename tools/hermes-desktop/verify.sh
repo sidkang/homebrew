@@ -42,6 +42,10 @@ test "$IDENTIFIER" = "com.nousresearch.hermes"
 test "$EXECUTABLE" = "Hermes"
 [[ "$ARCHS" == *arm64* ]]
 
+# A signature that does not describe this bundle makes macOS call a quarantined
+# install "damaged", which sends users to the Trash instead of an approval step.
+codesign --verify --deep --strict "$APP"
+
 python3 - <<PY
 import json
 from pathlib import Path
@@ -52,6 +56,7 @@ assert info["upstream_repository"] == "NousResearch/hermes-agent", info
 assert info["version"] == "$VERSION", info
 assert info["upstream_tag"] in {"$VERSION", "v$VERSION"}, info
 assert info["pack_command"] == "pnpm run pack", info
+assert info["signature"] in {"adhoc", "upstream"}, info
 assert len(info["upstream_commit"]) == 40, info
 PY
 

@@ -74,6 +74,22 @@ else
 fi
 
 ditto "$APP_PATH" "$STAGE_DIR/$APP_NAME"
+
+# electron-builder seeds the repacked bundle from Electron's own release, whose
+# main binary carries an adhoc *linker* signature. With no signing identity
+# configured (CI) it never re-signs, so the bundle's contents no longer match
+# that signature: `codesign --verify` fails, and macOS reports a quarantined
+# install as "damaged" instead of asking for approval. Re-signing adhoc makes
+# the signature describe the shipped bundle. The app is still unsigned by a
+# Developer ID and un-notarized, so first launch needs the user to allow it — but
+# it is no longer reported as corrupt. A pack that came out correctly signed
+# (a local Developer ID build) is left alone.
+APP_SIGNATURE=upstream
+if ! codesign --verify --deep --strict "$STAGE_DIR/$APP_NAME" 2>/dev/null; then
+  codesign --force --deep --sign - "$STAGE_DIR/$APP_NAME"
+  codesign --verify --deep --strict "$STAGE_DIR/$APP_NAME"
+  APP_SIGNATURE=adhoc
+fi
 cp "$HERMES_SOURCE/LICENSE" "$STAGE_DIR/LICENSE"
 cp "$MODULE_DIR/README.md" "$STAGE_DIR/README.md"
 
@@ -90,6 +106,7 @@ Path("$STAGE_DIR/BUILD-INFO.json").write_text(
             "version": "$VERSION",
             "pack_command": "pnpm run pack",
             "app": "Hermes.app",
+            "signature": "$APP_SIGNATURE",
         },
         indent=2,
     )

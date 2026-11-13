@@ -31,6 +31,19 @@ The zip contains:
 
 On first launch the app can connect to an existing Hermes gateway or install a local runtime into `~/.hermes`. That is Desktop onboarding, not `Hermes-Setup.dmg`.
 
+## Signing
+
+The build has no Developer ID and is not notarized. electron-builder alone is
+not enough: with no signing identity it leaves Electron's own linker signature
+on the repacked bundle, so `codesign --verify` fails and macOS reports a
+quarantined install as "damaged" (offering only Move to Trash). `build.sh`
+therefore re-signs the staged app adhoc (`codesign --force --deep --sign -`)
+whenever the packed signature does not describe the bundle, and `verify.sh`
+asserts `codesign --verify --deep --strict` passes.
+
+The result is a self-consistent adhoc signature: macOS treats it as an
+unidentified developer, which the user can approve, instead of as corrupt.
+
 ## Build
 
 Required toolchain matches upstream CI: Node 26, Xcode CLT, and the pnpm version

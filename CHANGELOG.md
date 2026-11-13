@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Hermes Desktop App: follow the upstream move from npm to the pnpm workspace (Hermes 0.23.1), so the scheduled release builds again. The build installs the pnpm version pinned in the upstream `pm/lock.json` and uses upstream's `node-deps` preparation step.
+- Hermes Desktop App: re-sign the packed app adhoc, so a quarantined install reads as an unidentified developer instead of as damaged.
 - Sarasa SS17 SC Nerd Font: Cask `font-sarasa-ss17-sc-nerd-font` installs both `Sarasa Term Slab SS17 SC Nerd Font` and `Sarasa Mono SS17 SC Nerd Font`, with ten faces each (ExtraLight to Bold, upright and italic). It replaces `font-sarasa-term-slab-ss17-sc-nerd-font` via `cask_renames.json` upon publication. Rebuilt weekly when Sarasa Gothic, Iosevka Term Slab SS17, or Nerd Fonts updates.
 - Hermes Desktop App: watch official Hermes releases every six hours, pack unpacked `Hermes.app`, and publish the `hermes-desktop-app` cask.
 - Hermes Desktop App: document install as an app cask (`brew install --cask hermes-desktop-app`), not via the fonts tap path.

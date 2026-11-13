@@ -30,11 +30,14 @@ cask "hermes-desktop-app" do
 
   caveats <<~EOS
     This is the unpacked Desktop app from `pnpm run pack`, not the official
-    Hermes-Setup installer. The build is unsigned, so install with:
+    Hermes-Setup installer. It is signed adhoc, not with a Developer ID, so
+    macOS blocks the first launch as an unidentified developer. Install with:
 
       brew install --cask --no-quarantine hermes-desktop-app
 
-    If Gatekeeper still blocks it:
+    Upgrading a cask takes no `--no-quarantine` flag, so after an upgrade
+    approve the app in System Settings → Privacy & Security, or clear the
+    quarantine flag directly:
 
       xattr -cr #{appdir}/Hermes.app
 
